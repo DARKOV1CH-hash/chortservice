@@ -27,14 +27,14 @@ class ServerService:
         return capacity_map.get(capacity_mode, 5)
 
     async def create_server(
-        self, 
-        db: AsyncSession, 
-        server_data: ServerCreate, 
+        self,
+        db: AsyncSession,
+        server_data: ServerCreate,
         user_email: str
     ) -> Server:
         """Create new server."""
         max_domains = self._get_max_domains(server_data.capacity_mode)
-        
+
         server = Server(
             name=server_data.name,
             ip_address=server_data.ip_address,
@@ -44,19 +44,20 @@ class ServerService:
             individual_config=server_data.individual_config,
             central_config=server_data.central_config,
             description=server_data.description,
+            password=server_data.password,
             created_by=user_email,
         )
-        
+
         db.add(server)
         await db.flush()
-        
+
         logger.info(
             "Server created",
             server_id=server.id,
             name=server.name,
             user=user_email
         )
-        
+
         # Publish event
         await redis_service.publish("servers", {
             "action": "created",
@@ -64,7 +65,107 @@ class ServerService:
             "server_name": server.name,
             "user": user_email,
         })
-        
+
+        return server
+
+    async def bulk_create_servers(
+        self,
+        db: AsyncSession,
+        servers_data: list[str],
+        capacity_mode: CapacityMode,
+        description: str | None,
+        user_email: str,
+    ) -> tuple[list[Server], list[str]]:
+        """
+        Bulk create servers from list of 'IP password' or 'IP' strings.
+
+        Returns tuple of (created_servers, skipped_ips).
+        """
+        created = []
+        skipped = []
+        max_domains = self._get_max_domains(capacity_mode)
+
+        for line in servers_data:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Parse "IP password" or just "IP"
+            parts = line.split(maxsplit=1)
+            ip_address = parts[0]
+            password = parts[1] if len(parts) > 1 else None
+
+            # Check if IP already exists
+            existing = await db.execute(
+                select(Server).where(Server.ip_address == ip_address)
+            )
+            if existing.scalar_one_or_none():
+                skipped.append(ip_address)
+                continue
+
+            # Generate name from IP
+            name = f"server-{ip_address.replace('.', '-')}"
+
+            server = Server(
+                name=name,
+                ip_address=ip_address,
+                capacity_mode=capacity_mode.value,
+                max_domains=max_domains,
+                password=password,
+                description=description,
+                created_by=user_email,
+            )
+
+            db.add(server)
+            await db.flush()
+            created.append(server)
+
+        logger.info(
+            "Bulk servers created",
+            created=len(created),
+            skipped=len(skipped),
+            user=user_email
+        )
+
+        # Publish event
+        await redis_service.publish("servers", {
+            "action": "bulk_created",
+            "count": len(created),
+            "user": user_email,
+        })
+
+        return created, skipped
+
+    async def toggle_lock(
+        self,
+        db: AsyncSession,
+        server_id: int,
+        user_email: str,
+    ) -> Server | None:
+        """Toggle server lock status for preventing domain assignments."""
+        server = await self.get_server(db, server_id)
+        if not server:
+            return None
+
+        server.is_locked = not server.is_locked
+        server.updated_at = datetime.utcnow()
+        await db.flush()
+
+        logger.info(
+            "Server lock toggled",
+            server_id=server.id,
+            is_locked=server.is_locked,
+            user=user_email
+        )
+
+        # Publish event
+        await redis_service.publish("servers", {
+            "action": "lock_toggled",
+            "server_id": server.id,
+            "is_locked": server.is_locked,
+            "user": user_email,
+        })
+
         return server
 
     async def get_server(self, db: AsyncSession, server_id: int) -> Server | None:
@@ -84,22 +185,28 @@ class ServerService:
         skip: int = 0,
         limit: int = 100,
         status: ServerStatus | None = None,
+        group_id: int | None = None,
     ) -> tuple[list[Server], int]:
         """Get list of servers with pagination."""
-        query = select(Server)
-        
+        from src.models.server_group import ServerGroup
+
+        query = select(Server).options(selectinload(Server.group))
+
         if status:
             query = query.where(Server.status == status.value)
-        
+
+        if group_id is not None:
+            query = query.where(Server.group_id == group_id)
+
         # Count total
         count_query = select(func.count()).select_from(query.subquery())
         total = await db.scalar(count_query)
-        
+
         # Get paginated results
         query = query.offset(skip).limit(limit).order_by(Server.created_at.desc())
         result = await db.execute(query)
         servers = result.scalars().all()
-        
+
         return list(servers), total or 0
 
     async def update_server(
@@ -251,14 +358,15 @@ class ServerService:
         db: AsyncSession,
         capacity_mode: CapacityMode | None = None,
     ) -> list[Server]:
-        """Get servers with available capacity."""
+        """Get servers with available capacity (excluding locked servers)."""
         query = select(Server).where(
-            Server.current_domains < Server.max_domains
+            Server.current_domains < Server.max_domains,
+            Server.is_locked == False,
         )
-        
+
         if capacity_mode:
             query = query.where(Server.capacity_mode == capacity_mode.value)
-        
+
         query = query.order_by(Server.current_domains.asc())
         result = await db.execute(query)
         return list(result.scalars().all())

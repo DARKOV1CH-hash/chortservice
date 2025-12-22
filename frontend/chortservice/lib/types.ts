@@ -14,11 +14,57 @@ export interface Server {
   individual_config: string | null;
   central_config: string | null;
   description: string | null;
+  password: string | null;
+  is_locked: boolean;
+  group_id: number | null;
+  group_name: string | null;
   created_at: string;
   updated_at: string;
   created_by: string;
   locked_by: string | null;
   locked_at: string | null;
+}
+
+// Server Group types
+export interface ServerGroup {
+  id: number;
+  name: string;
+  description: string | null;
+  color: string | null;
+  server_count: number;
+  total_domains: number;
+  total_capacity: number;
+  created_at: string;
+  updated_at: string;
+  created_by: string;
+}
+
+export interface ServerGroupWithServers extends ServerGroup {
+  servers: Array<{
+    id: number;
+    name: string;
+    ip_address: string;
+    current_domains: number;
+    max_domains: number;
+    is_locked: boolean;
+  }>;
+}
+
+export interface ServerGroupCreate {
+  name: string;
+  description?: string | null;
+  color?: string | null;
+}
+
+export interface ServerGroupUpdate {
+  name?: string;
+  description?: string | null;
+  color?: string | null;
+}
+
+export interface ServerGroupListResponse {
+  groups: ServerGroup[];
+  total: number;
 }
 
 export interface ServerWithAssignments extends Server {
@@ -33,6 +79,20 @@ export interface ServerCreate {
   individual_config?: string | null;
   central_config?: string | null;
   description?: string | null;
+  password?: string | null;
+}
+
+export interface ServerBulkCreate {
+  servers: string[];
+  capacity_mode?: CapacityMode;
+  description?: string | null;
+}
+
+export interface ServerBulkCreateResponse {
+  created: number;
+  skipped: number;
+  skipped_ips: string[];
+  servers: Server[];
 }
 
 export interface ServerUpdate {
@@ -43,7 +103,9 @@ export interface ServerUpdate {
   individual_config?: string | null;
   central_config?: string | null;
   description?: string | null;
+  password?: string | null;
   status?: ServerStatus;
+  is_locked?: boolean;
 }
 
 export interface ServerListResponse {
@@ -121,7 +183,6 @@ export interface AssignmentBulkCreate {
 export interface AssignmentAutoCreate {
   domain_ids: number[];
   capacity_mode?: string;
-  distribute_evenly?: boolean;
 }
 
 export interface AssignmentStats {

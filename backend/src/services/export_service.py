@@ -5,6 +5,7 @@ from sqlalchemy.orm import selectinload
 
 from src.models.assignment import Assignment
 from src.models.server import Server
+from src.models.server_group import ServerGroup
 
 logger = structlog.get_logger(__name__)
 
@@ -50,14 +51,17 @@ class ExportService:
         for server in servers:
             if not server.assignments:
                 continue
-            
-            # Server header
-            output_lines.append(f"[{server.ip_address}]")
-            
+
+            # Server header with IP and password (if exists)
+            if server.password:
+                output_lines.append(f"{server.ip_address} {server.password}")
+            else:
+                output_lines.append(f"{server.ip_address}")
+
             # Add domains
             for assignment in sorted(server.assignments, key=lambda a: a.domain.name):
                 output_lines.append(assignment.domain.name)
-            
+
             # Empty line between servers
             output_lines.append("")
         
@@ -233,8 +237,78 @@ class ExportService:
         report["summary"]["overall_utilization"] = report["summary"]["utilization_percent"]
         
         logger.info("Generated capacity report")
-        
+
         return report
+
+    async def export_group_to_domain_hub(
+        self,
+        db: AsyncSession,
+        group_id: int,
+    ) -> str:
+        """
+        Export all servers in a group to Domain Hub format.
+
+        Format:
+        IP password
+        domain1.com
+        domain2.com
+
+        IP2 password2
+        domain3.com
+
+        Args:
+            group_id: Server group ID
+
+        Returns:
+            Formatted text ready for Domain Hub
+        """
+        # Get group with servers and their assignments
+        result = await db.execute(
+            select(ServerGroup)
+            .where(ServerGroup.id == group_id)
+            .options(
+                selectinload(ServerGroup.servers)
+                .selectinload(Server.assignments)
+                .selectinload(Assignment.domain)
+            )
+        )
+        group = result.scalar_one_or_none()
+
+        if not group:
+            logger.warning("Server group not found for export", group_id=group_id)
+            return ""
+
+        output_lines = []
+
+        # Sort servers by name
+        for server in sorted(group.servers, key=lambda s: s.name):
+            if not server.assignments:
+                continue
+
+            # Server header with IP and password (if exists)
+            if server.password:
+                output_lines.append(f"{server.ip_address} {server.password}")
+            else:
+                output_lines.append(f"{server.ip_address}")
+
+            # Add domains
+            for assignment in sorted(server.assignments, key=lambda a: a.domain.name):
+                output_lines.append(assignment.domain.name)
+
+            # Empty line between servers
+            output_lines.append("")
+
+        export_text = "\n".join(output_lines)
+
+        logger.info(
+            "Exported group to Domain Hub format",
+            group_id=group_id,
+            group_name=group.name,
+            servers_count=len(group.servers),
+            total_lines=len(output_lines)
+        )
+
+        return export_text
 
 
 export_service = ExportService()

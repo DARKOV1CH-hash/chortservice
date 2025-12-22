@@ -130,7 +130,6 @@ async def auto_create_assignments(
         domain_ids=auto_data.domain_ids,
         user_email=user.email,
         capacity_mode=capacity_mode,
-        distribute_evenly=auto_data.distribute_evenly,
     )
 
     assignment_responses = await _build_assignment_responses(db, assignments)
@@ -273,11 +272,45 @@ async def export_server_config(
 ):
     """Export server configuration with assigned domains."""
     config = await export_service.export_server_config(db, server_id)
-    
+
     if not config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Server not found"
         )
-    
+
     return config
+
+
+@router.get("/export/group/{group_id}")
+async def export_group_domain_hub(
+    group_id: int,
+    user: Annotated[UserInfo, Depends(require_auth)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """
+    Export all servers in a group to Domain Hub format.
+
+    Format:
+    IP password
+    domain1.com
+    domain2.com
+
+    IP2 password2
+    domain3.com
+    """
+    export_text = await export_service.export_group_to_domain_hub(db, group_id)
+
+    if not export_text:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Server group not found or has no assignments"
+        )
+
+    return Response(
+        content=export_text,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f"attachment; filename=group-{group_id}-export.txt"
+        }
+    )

@@ -21,9 +21,16 @@ export default function DomainsPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showServerExportModal, setShowServerExportModal] = useState(false);
   const [selectedDomain, setSelectedDomain] = useState<Domain | null>(null);
   const [selectedDomains, setSelectedDomains] = useState<Set<number>>(new Set());
   const [availableServers, setAvailableServers] = useState<Server[]>([]);
+
+  // Server export modal state
+  const [exportServerId, setExportServerId] = useState<number | null>(null);
+  const [exportServerName, setExportServerName] = useState<string>('');
+  const [exportContent, setExportContent] = useState<string>('');
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState<DomainCreate>({
@@ -70,6 +77,40 @@ export default function DomainsPage() {
     } catch (error) {
       console.error('Failed to load available servers:', error);
     }
+  };
+
+  const openServerExportModal = async (serverId: number, serverName: string) => {
+    setExportServerId(serverId);
+    setExportServerName(serverName);
+    setExportContent('');
+    setExportLoading(true);
+    setShowServerExportModal(true);
+
+    try {
+      const content = await assignmentApi.exportDomainHub(serverId);
+      setExportContent(content);
+    } catch (error) {
+      console.error('Failed to load server export:', error);
+      setExportContent('Failed to load export');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const copyExportToClipboard = () => {
+    navigator.clipboard.writeText(exportContent);
+  };
+
+  const downloadExport = () => {
+    const blob = new Blob([exportContent], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${exportServerName}-export.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
   };
 
   const handleCreate = async () => {
@@ -180,7 +221,6 @@ export default function DomainsPage() {
       if (autoAssign) {
         await assignmentApi.autoAssign({
           domain_ids: domainIds,
-          distribute_evenly: true,
         });
       } else if (assignServerId) {
         await assignmentApi.bulkCreate({
@@ -313,10 +353,16 @@ export default function DomainsPage() {
       header: 'Server',
       render: (domain: Record<string, unknown>) => {
         const d = domain as unknown as Domain;
-        return d.assigned_server_name ? (
-          <span className="text-zinc-900 dark:text-zinc-100">
+        return d.assigned_server_name && d.assigned_server_id ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              openServerExportModal(d.assigned_server_id!, d.assigned_server_name!);
+            }}
+            className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 hover:underline"
+          >
             {d.assigned_server_name}
-          </span>
+          </button>
         ) : (
           <span className="text-zinc-400">-</span>
         );
@@ -627,7 +673,7 @@ export default function DomainsPage() {
           </div>
 
           <Checkbox
-            label="Auto-assign (distribute evenly across available servers)"
+            label="Auto-assign (fill servers one at a time)"
             checked={autoAssign}
             onChange={(e) => {
               setAutoAssign(e.target.checked);
@@ -660,6 +706,52 @@ export default function DomainsPage() {
             </Button>
             <Button onClick={handleAssign} loading={submitting}>
               Assign Domains
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Server Export Modal */}
+      <Modal
+        isOpen={showServerExportModal}
+        onClose={() => setShowServerExportModal(false)}
+        title={`Domain Hub Export - ${exportServerName}`}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {exportLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <svg className="animate-spin h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          ) : (
+            <>
+              <div className="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
+                <div className="bg-zinc-50 dark:bg-zinc-800 px-4 py-2 flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700">
+                  <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+                    Domain Hub Format
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="ghost" size="sm" onClick={copyExportToClipboard}>
+                      Copy
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={downloadExport}>
+                      Download
+                    </Button>
+                  </div>
+                </div>
+                <pre className="p-4 text-sm font-mono text-zinc-800 dark:text-zinc-200 overflow-auto max-h-96 whitespace-pre-wrap">
+                  {exportContent || 'No domains assigned to this server'}
+                </pre>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end pt-4">
+            <Button variant="secondary" onClick={() => setShowServerExportModal(false)}>
+              Close
             </Button>
           </div>
         </div>

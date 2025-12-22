@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from src.api import assignments, domains, servers, websocket
+from src.api import assignments, domains, server_groups, servers, websocket
 from src.auth.dependencies import setup_oauth
 from src.config import get_settings
 from src.db.database import init_db
@@ -49,6 +49,7 @@ setup_oauth()
 
 # Include routers
 app.include_router(servers.router, prefix="/api/v1")
+app.include_router(server_groups.router, prefix="/api/v1")
 app.include_router(domains.router, prefix="/api/v1")
 app.include_router(assignments.router, prefix="/api/v1")
 app.include_router(websocket.router, prefix="/api/v1")

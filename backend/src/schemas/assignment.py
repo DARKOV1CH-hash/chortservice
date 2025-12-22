@@ -18,8 +18,7 @@ class AssignmentBulkCreate(BaseModel):
 class AssignmentAutoCreate(BaseModel):
     """Schema for automatic assignment."""
     domain_ids: list[int] = Field(..., min_items=1)
-    capacity_mode: str | None = None  # Optional override
-    distribute_evenly: bool = True
+    capacity_mode: str | None = None  # Optional filter by capacity mode
 
 
 class AssignmentResponse(BaseModel):

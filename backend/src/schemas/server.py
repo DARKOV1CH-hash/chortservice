@@ -14,6 +14,7 @@ class ServerBase(BaseModel):
     individual_config: str | None = None
     central_config: str | None = None
     description: str | None = None
+    password: str | None = None
 
 
 class ServerCreate(ServerBase):
@@ -35,7 +36,9 @@ class ServerUpdate(BaseModel):
     individual_config: str | None = None
     central_config: str | None = None
     description: str | None = None
+    password: str | None = None
     status: ServerStatus | None = None
+    is_locked: bool | None = None
 
 
 class ServerResponse(ServerBase):
@@ -44,6 +47,9 @@ class ServerResponse(ServerBase):
     status: ServerStatus
     max_domains: int
     current_domains: int
+    is_locked: bool = False
+    group_id: int | None = None
+    group_name: str | None = None
     created_at: datetime
     updated_at: datetime
     created_by: str
@@ -68,3 +74,18 @@ class ServerWithAssignments(ServerResponse):
 
     class Config:
         from_attributes = True
+
+
+class ServerBulkCreate(BaseModel):
+    """Schema for bulk creating servers."""
+    servers: list[str] = Field(..., min_length=1)  # List of "IP password" or just "IP" strings
+    capacity_mode: CapacityMode = CapacityMode.MODE_1_5
+    description: str | None = None
+
+
+class ServerBulkCreateResponse(BaseModel):
+    """Response for bulk server creation."""
+    created: int
+    skipped: int
+    skipped_ips: list[str]
+    servers: list[ServerResponse]

@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from src.db.database import Base
@@ -49,7 +49,19 @@ class Server(Base):
     is_central_config: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     individual_config: Mapped[str | None] = mapped_column(Text, nullable=True)
     central_config: Mapped[str | None] = mapped_column(Text, nullable=True)
-    
+    password: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Lock for preventing domain assignments
+    is_locked: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Group membership
+    group_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("server_groups.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+
     # Metadata
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -69,9 +81,14 @@ class Server(Base):
     
     # Relationships
     assignments: Mapped[list["Assignment"]] = relationship(
-        "Assignment", 
+        "Assignment",
         back_populates="server",
         cascade="all, delete-orphan"
+    )
+    group: Mapped["ServerGroup"] = relationship(
+        "ServerGroup",
+        back_populates="servers",
+        foreign_keys=[group_id]
     )
 
     @property

@@ -129,7 +129,7 @@ export default function AssignmentsPage() {
           <StatCard label="Total Domains" value={stats.total_domains} />
           <StatCard label="Assigned Domains" value={stats.assigned_domains} />
           <StatCard label="Free Domains" value={stats.free_domains} />
-          <StatCard label="Average Load" value={`${(stats.average_load * 100).toFixed(1)}%`} />
+          <StatCard label="Average Load" value={`${(stats.average_load).toFixed(1)}%`} />
         </div>
       )}
 
@@ -211,41 +211,6 @@ export default function AssignmentsPage() {
         </Card>
       )}
 
-      {/* Capacity by Mode */}
-      {stats?.capacity_utilization && Object.keys(stats.capacity_utilization).length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-            Capacity by Mode
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {Object.entries(stats.capacity_utilization).map(([mode, data]) => (
-              <div
-                key={mode}
-                className="p-4 border border-zinc-200 dark:border-zinc-700 rounded-lg"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <Badge variant="info">{mode}</Badge>
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {data.servers} server(s)
-                  </span>
-                </div>
-                <div className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                  {data.used}/{data.capacity}
-                </div>
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                  domains used
-                </div>
-                <div className="mt-2 w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{ width: `${(data.used / Math.max(data.capacity, 1)) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* Export Modal */}
       <Modal
@@ -317,11 +282,7 @@ export default function AssignmentsPage() {
             </>
           )}
 
-          <div className="flex justify-end pt-4">
-            <Button variant="secondary" onClick={() => setShowExportModal(false)}>
-              Close
-            </Button>
-          </div>
+
         </div>
       </Modal>
     </div>

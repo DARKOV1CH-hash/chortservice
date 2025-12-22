@@ -4,6 +4,13 @@ import type {
   ServerUpdate,
   ServerListResponse,
   ServerWithAssignments,
+  ServerBulkCreate,
+  ServerBulkCreateResponse,
+  ServerGroup,
+  ServerGroupCreate,
+  ServerGroupUpdate,
+  ServerGroupListResponse,
+  ServerGroupWithServers,
   Domain,
   DomainCreate,
   DomainBulkCreate,
@@ -62,13 +69,15 @@ export const serverApi = {
   list: async (
     page = 1,
     pageSize = 50,
-    status?: ServerStatus
+    status?: ServerStatus,
+    groupId?: number
   ): Promise<ServerListResponse> => {
     const params = new URLSearchParams({
       page: String(page),
       page_size: String(pageSize),
     });
     if (status) params.append('status_filter', status);
+    if (groupId !== undefined) params.append('group_id', String(groupId));
     return fetchApi(`/servers?${params}`);
   },
 
@@ -78,6 +87,13 @@ export const serverApi = {
 
   create: async (data: ServerCreate): Promise<Server> => {
     return fetchApi('/servers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  bulkCreate: async (data: ServerBulkCreate): Promise<ServerBulkCreateResponse> => {
+    return fetchApi('/servers/bulk', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -102,8 +118,70 @@ export const serverApi = {
     return fetchApi(`/servers/${id}/unlock`, { method: 'POST' });
   },
 
+  toggleLock: async (id: number): Promise<Server> => {
+    return fetchApi(`/servers/${id}/toggle-lock`, { method: 'POST' });
+  },
+
   listAvailable: async (): Promise<Server[]> => {
     return fetchApi('/servers/available/list');
+  },
+};
+
+// Server Group API
+export const serverGroupApi = {
+  list: async (page = 1, pageSize = 50): Promise<ServerGroupListResponse> => {
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(pageSize),
+    });
+    return fetchApi(`/server-groups?${params}`);
+  },
+
+  get: async (id: number): Promise<ServerGroupWithServers> => {
+    return fetchApi(`/server-groups/${id}`);
+  },
+
+  create: async (data: ServerGroupCreate): Promise<ServerGroup> => {
+    return fetchApi('/server-groups', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
+  update: async (id: number, data: ServerGroupUpdate): Promise<ServerGroup> => {
+    return fetchApi(`/server-groups/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+
+  delete: async (id: number): Promise<void> => {
+    return fetchApi(`/server-groups/${id}`, { method: 'DELETE' });
+  },
+
+  assignServers: async (groupId: number, serverIds: number[]): Promise<{ assigned: number; failed: number; failed_server_ids: number[] }> => {
+    return fetchApi(`/server-groups/${groupId}/servers`, {
+      method: 'POST',
+      body: JSON.stringify({ server_ids: serverIds }),
+    });
+  },
+
+  removeServers: async (groupId: number, serverIds: number[]): Promise<{ removed: number }> => {
+    return fetchApi(`/server-groups/${groupId}/servers`, {
+      method: 'DELETE',
+      body: JSON.stringify({ server_ids: serverIds }),
+    });
+  },
+
+  getUngroupedServers: async (): Promise<Array<{ id: number; name: string; ip_address: string; current_domains: number; max_domains: number; is_locked: boolean }>> => {
+    return fetchApi('/server-groups/ungrouped/servers');
+  },
+
+  exportDomainHub: async (groupId: number): Promise<string> => {
+    const response = await fetch(`${API_URL}/api/v1/assignments/export/group/${groupId}`, {
+      credentials: 'include',
+    });
+    return response.text();
   },
 };
 

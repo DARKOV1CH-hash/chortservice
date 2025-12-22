@@ -26,22 +26,27 @@ class AssignmentService:
     ) -> Assignment | None:
         """
         Create assignment between domain and server.
-        
-        Returns None if server is full or domain already assigned.
+
+        Returns None if server is full, locked, or domain already assigned.
         """
         # Get domain and server
         domain = await db.get(Domain, domain_id)
         server = await db.get(Server, server_id)
-        
+
         if not domain or not server:
             logger.warning("Domain or server not found", domain_id=domain_id, server_id=server_id)
             return None
-        
+
+        # Check if server is locked
+        if server.is_locked:
+            logger.warning("Server is locked for assignments", server_id=server_id)
+            return None
+
         # Check if domain already assigned
         if domain.status == DomainStatus.ASSIGNED.value:
             logger.warning("Domain already assigned", domain_id=domain_id)
             return None
-        
+
         # Check server capacity
         if server.is_full:
             logger.warning("Server is full", server_id=server_id, current=server.current_domains, max=server.max_domains)
@@ -99,22 +104,27 @@ class AssignmentService:
     ) -> tuple[list[Assignment], list[int]]:
         """
         Bulk assign domains to a server.
-        
+
         Returns:
             Tuple of (created_assignments, failed_domain_ids)
         """
         server = await db.get(Server, server_id)
         if not server:
             return [], domain_ids
-        
+
+        # Check if server is locked
+        if server.is_locked:
+            logger.warning("Cannot bulk assign to locked server", server_id=server_id)
+            return [], domain_ids
+
         assignments = []
         failed_ids = []
-        
+
         for domain_id in domain_ids:
             if server.is_full:
                 failed_ids.extend(domain_ids[len(assignments):])
                 break
-            
+
             assignment = await self.create_assignment(db, domain_id, server_id, user_email)
             if assignment:
                 assignments.append(assignment)
@@ -139,44 +149,47 @@ class AssignmentService:
         domain_ids: list[int],
         user_email: str,
         capacity_mode: CapacityMode | None = None,
-        distribute_evenly: bool = True,
     ) -> tuple[list[Assignment], list[int]]:
         """
         Automatically assign domains to servers.
-        
-        Distributes evenly across available servers based on capacity.
-        
+
+        Fills servers one at a time - fills the most loaded server first,
+        then moves to the next when full.
+
         Returns:
             Tuple of (created_assignments, failed_domain_ids)
         """
-        # Get available servers
+        # Get available servers (excluding locked servers)
+        # Order by current_domains DESC to fill most loaded servers first
         query = select(Server).where(
-            Server.current_domains < Server.max_domains
+            Server.current_domains < Server.max_domains,
+            Server.is_locked == False,
         )
-        
+
         if capacity_mode:
             query = query.where(Server.capacity_mode == capacity_mode.value)
-        
-        if distribute_evenly:
-            query = query.order_by(Server.current_domains.asc())
-        
+
+        # Fill most loaded servers first (to complete them)
+        query = query.order_by(Server.current_domains.desc())
+
         result = await db.execute(query)
         servers = list(result.scalars().all())
-        
+
         if not servers:
             logger.warning("No available servers for auto-assignment")
             return [], domain_ids
-        
+
         assignments = []
         failed_ids = []
         server_idx = 0
-        
+
         for domain_id in domain_ids:
             # Find next available server
             assigned = False
-            for _ in range(len(servers)):
+
+            while server_idx < len(servers):
                 server = servers[server_idx]
-                
+
                 if not server.is_full:
                     assignment = await self.create_assignment(
                         db, domain_id, server.id, user_email
@@ -184,14 +197,11 @@ class AssignmentService:
                     if assignment:
                         assignments.append(assignment)
                         assigned = True
-                        
-                        # Move to next server for even distribution
-                        if distribute_evenly:
-                            server_idx = (server_idx + 1) % len(servers)
                         break
-                
-                server_idx = (server_idx + 1) % len(servers)
-            
+
+                # Server is full, move to next
+                server_idx += 1
+
             if not assigned:
                 failed_ids.append(domain_id)
         

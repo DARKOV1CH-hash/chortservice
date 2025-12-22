@@ -76,7 +76,7 @@ export default function Dashboard() {
           />
           <StatCard
             title="Average Load"
-            value={`${(stats.average_load * 100).toFixed(1)}%`}
+            value={`${(stats.average_load).toFixed(1)}%`}
             subtitle="Across all servers"
             color="yellow"
           />
@@ -89,38 +89,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Capacity by Mode */}
-      {stats?.capacity_utilization && Object.keys(stats.capacity_utilization).length > 0 && (
-        <Card className="p-6">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
-            Capacity by Mode
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {Object.entries(stats.capacity_utilization).map(([mode, data]) => (
-              <div
-                key={mode}
-                className="p-4 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
-              >
-                <div className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                  Mode {mode}
-                </div>
-                <div className="mt-1 text-2xl font-bold text-zinc-900 dark:text-zinc-100">
-                  {data.servers} servers
-                </div>
-                <div className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  {data.used}/{data.capacity} domains used
-                </div>
-                <div className="mt-2 w-full bg-zinc-200 dark:bg-zinc-700 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all"
-                    style={{ width: `${(data.used / Math.max(data.capacity, 1)) * 100}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
 
       {/* Recent Items */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
