@@ -15,11 +15,13 @@ oauth = OAuth()
 def setup_oauth():
     """Configure OAuth client for Authentik."""
     if settings.authentik_issuer and settings.authentik_client_id:
+        # Remove trailing slash from issuer to avoid double slashes
+        issuer = settings.authentik_issuer.rstrip('/')
         oauth.register(
             name="authentik",
             client_id=settings.authentik_client_id,
             client_secret=settings.authentik_client_secret,
-            server_metadata_url=f"{settings.authentik_issuer}/.well-known/openid-configuration",
+            server_metadata_url=f"{issuer}/.well-known/openid-configuration",
             client_kwargs={"scope": "openid email profile groups"},
         )
 
@@ -74,12 +76,13 @@ async def require_auth(request: Request) -> UserInfo:
             detail="Not authenticated",
         )
 
-    # Check if user has access
-    if settings.authentik_access_group not in user.groups and not user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied",
-        )
+    # Check if user has access (skip if access group is not configured)
+    if settings.authentik_access_group:
+        if settings.authentik_access_group not in user.groups and not user.is_admin:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Access denied",
+            )
 
     return user
 

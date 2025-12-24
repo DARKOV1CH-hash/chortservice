@@ -53,16 +53,22 @@ services:
 
       # App
       DEBUG: "true"
-      DEV_MODE: "true"
+      DEV_MODE: "false"
       DEV_USER_ROLE: admin
 
-      # Authentik (configure for production)
-      AUTHENTIK_ISSUER: ${AUTHENTIK_ISSUER:-}
-      AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:-}
-      AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET:-}
+      # Authentik OAuth2
+      AUTHENTIK_ISSUER: http://100.64.0.8:9000/application/o/chortdomains/
+      AUTHENTIK_CLIENT_ID: ZgCj4lQa864hjGiryt67fAEGw5mfPzkqpnnY0caC
+      AUTHENTIK_CLIENT_SECRET: 8e4V3k7lxwfrGf7yD0ckyDLp2RFCRFk5zcxNb6pA26vuAgIKGtPzGRAGIXi7dJBGik393FIMRDlVhBSlc82Xt3aKZ6n4vjh7vcFArtVTaJmuKWqC9h8IRjlzGqtkuhwv
+      # Leave empty to allow any authenticated user
+      AUTHENTIK_ACCESS_GROUP: ""
+      AUTHENTIK_ADMIN_GROUP: chortdomains - admin
+
+      # Frontend URL for redirects
+      FRONTEND_URL: http://localhost:3000
 
       # CORS
-      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
+      CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000", "http://100.64.0.8:9000"]'
     ports:
       - "8000:8000"
     depends_on:

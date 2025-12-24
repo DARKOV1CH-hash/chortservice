@@ -240,3 +240,12 @@ export interface WSMessage {
     [key: string]: unknown;
   };
 }
+
+// Auth types
+export interface User {
+  authenticated: boolean;
+  email?: string;
+  name?: string;
+  groups?: string[];
+  is_admin?: boolean;
+}

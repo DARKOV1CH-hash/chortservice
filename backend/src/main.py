@@ -99,41 +99,72 @@ async def health_check():
     }
 
 
-# OAuth routes for authentication
-if not settings.dev_mode and settings.authentik_issuer:
-    from authlib.integrations.starlette_client import OAuth
-    from fastapi import Request
-    from starlette.responses import RedirectResponse
-    
-    from src.auth.dependencies import oauth
-    
-    @app.get("/auth/login")
-    async def login(request: Request):
-        """Initiate OAuth login."""
-        redirect_uri = request.url_for("auth_callback")
-        return await oauth.authentik.authorize_redirect(request, redirect_uri)
-    
-    @app.get("/auth/callback")
-    async def auth_callback(request: Request):
-        """OAuth callback handler."""
-        try:
-            token = await oauth.authentik.authorize_access_token(request)
-            user_info = token.get("userinfo")
-            
-            if user_info:
-                request.session["user"] = user_info
-                logger.info("User logged in", user=user_info.get("email"))
-            
-            return RedirectResponse(url="/")
-        except Exception as e:
-            logger.error("OAuth callback error", error=str(e))
-            return RedirectResponse(url="/auth/login")
-    
-    @app.get("/auth/logout")
-    async def logout(request: Request):
-        """Logout user."""
-        request.session.clear()
-        return RedirectResponse(url="/")
+# Auth routes
+from fastapi import Request
+from starlette.responses import RedirectResponse, JSONResponse
+from src.auth.dependencies import oauth, get_user_from_session, get_dev_user
+
+@app.get("/auth/me")
+async def get_current_user(request: Request):
+    """Get current user info."""
+    if settings.dev_mode:
+        user = get_dev_user()
+        return {
+            "authenticated": True,
+            "email": user.email,
+            "name": user.name,
+            "groups": user.groups,
+            "is_admin": user.is_admin,
+        }
+
+    user = get_user_from_session(request)
+    if not user:
+        return {"authenticated": False}
+
+    return {
+        "authenticated": True,
+        "email": user.email,
+        "name": user.name,
+        "groups": user.groups,
+        "is_admin": user.is_admin,
+    }
+
+@app.get("/auth/login")
+async def login(request: Request):
+    """Initiate OAuth login."""
+    if settings.dev_mode:
+        return RedirectResponse(url=settings.frontend_url)
+
+    redirect_uri = request.url_for("auth_callback")
+    return await oauth.authentik.authorize_redirect(request, redirect_uri)
+
+@app.get("/auth/callback")
+async def auth_callback(request: Request):
+    """OAuth callback handler."""
+    try:
+        token = await oauth.authentik.authorize_access_token(request)
+        user_info = token.get("userinfo")
+
+        if user_info:
+            request.session["user"] = dict(user_info)
+            logger.info("User logged in", user=user_info.get("email"))
+
+        return RedirectResponse(url=settings.frontend_url)
+    except Exception as e:
+        logger.error("OAuth callback error", error=str(e))
+        return RedirectResponse(url=f"{settings.frontend_url}?error=auth_failed")
+
+@app.get("/auth/logout")
+async def logout(request: Request):
+    """Logout user."""
+    request.session.clear()
+
+    if settings.dev_mode:
+        return RedirectResponse(url=settings.frontend_url)
+
+    # Redirect to Authentik logout
+    logout_url = f"{settings.authentik_issuer}end-session/"
+    return RedirectResponse(url=logout_url)
 
 
 if __name__ == "__main__":

@@ -52,6 +52,9 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]
 
+    # Frontend URL for OAuth redirects
+    frontend_url: str = "http://localhost:3000"
+
     # Server capacity modes
     default_capacity_mode: Literal["1:5", "1:7", "1:10"] = "1:5"
 

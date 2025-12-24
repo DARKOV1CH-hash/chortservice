@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAuth } from '@/hooks/useAuth';
 
 const navItems = [
   { href: '/', label: 'Dashboard', icon: DashboardIcon },
@@ -14,6 +15,7 @@ const navItems = [
 export function Navigation() {
   const pathname = usePathname();
   const { isConnected } = useWebSocket();
+  const { user, isAdmin, logout } = useAuth();
 
   return (
     <nav className="bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
@@ -63,6 +65,30 @@ export function Navigation() {
               <span className="text-xs text-zinc-500 dark:text-zinc-400">
                 {isConnected ? 'Connected' : 'Disconnected'}
               </span>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                  <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                    {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                  </span>
+                </div>
+                <div className="hidden sm:block">
+                  <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                    {user?.name || user?.email}
+                  </p>
+                  {isAdmin && (
+                    <p className="text-xs text-blue-600 dark:text-blue-400">Admin</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={logout}
+                className="px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+              >
+                Logout
+              </button>
             </div>
           </div>
         </div>

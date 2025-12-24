@@ -26,6 +26,7 @@ import type {
   AutoAssignResponse,
   CapacityReport,
   ServerStatus,
+  User,
 } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
@@ -302,6 +303,24 @@ export const assignmentApi = {
 
   getServerConfig: async (serverId: number): Promise<Record<string, unknown>> => {
     return fetchApi(`/assignments/export/server/${serverId}`);
+  },
+};
+
+// Auth API
+export const authApi = {
+  getUser: async (): Promise<User> => {
+    const response = await fetch(`${API_URL}/auth/me`, {
+      credentials: 'include',
+    });
+    return response.json();
+  },
+
+  getLoginUrl: (): string => {
+    return `${API_URL}/auth/login`;
+  },
+
+  getLogoutUrl: (): string => {
+    return `${API_URL}/auth/logout`;
   },
 };
 
