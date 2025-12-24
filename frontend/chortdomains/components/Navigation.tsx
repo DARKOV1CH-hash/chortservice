@@ -25,7 +25,7 @@ export function Navigation() {
                 <span className="text-white font-bold text-sm">CD</span>
               </div>
               <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                Chortline Domains
+                ChortDomains
               </span>
             </Link>
 

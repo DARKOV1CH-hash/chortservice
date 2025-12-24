@@ -1,4 +1,4 @@
-# Chortline Domain Manager - Startup Guide
+# ChortDomains - Startup Guide
 
 ## Prerequisites
 
@@ -72,7 +72,7 @@ uvicorn src.main:app --reload --port 8000
 ### Frontend
 
 ```bash
-cd frontend/chortservice
+cd frontend/chortdomains
 
 # Install dependencies
 npm install
@@ -196,7 +196,7 @@ docker-compose exec redis redis-cli ping
 
 ### Frontend Build Errors
 ```bash
-cd frontend/chortservice
+cd frontend/chortdomains
 rm -rf node_modules .next
 npm install
 npm run build
@@ -229,6 +229,6 @@ mypy .                          # Type check
 
 ### Frontend Linting
 ```bash
-cd frontend/chortservice
+cd frontend/chortdomains
 npm run lint
 ```

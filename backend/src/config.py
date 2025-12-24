@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     )
 
     # App
-    app_name: str = "Chortline Domain Manager"
+    app_name: str = "ChortDomains"
     debug: bool = False
     dev_mode: bool = False
     dev_user_role: Literal["admin", "user"] = "admin"
@@ -22,9 +22,9 @@ class Settings(BaseSettings):
     # Database
     postgres_host: str = "localhost"
     postgres_port: int = 5432
-    postgres_user: str = "chortline"
-    postgres_password: str = "chortline"
-    postgres_db: str = "chortline_domains"
+    postgres_user: str = "chortdomains"
+    postgres_password: str = "chortdomains"
+    postgres_db: str = "chortdomains"
 
     @property
     def database_url(self) -> str:
@@ -46,8 +46,8 @@ class Settings(BaseSettings):
     authentik_issuer: str = ""
     authentik_client_id: str = ""
     authentik_client_secret: str = ""
-    authentik_access_group: str = "chortline - access"
-    authentik_admin_group: str = "chortline - admin"
+    authentik_access_group: str = "chortdomains - access"
+    authentik_admin_group: str = "chortdomains - admin"
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:8000"]

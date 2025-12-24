@@ -4,17 +4,17 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: chortline_domains_db
+    container_name: chortdomains_db
     environment:
-      POSTGRES_USER: chortline
-      POSTGRES_PASSWORD: chortline
-      POSTGRES_DB: chortline_domains
+      POSTGRES_USER: chortdomains
+      POSTGRES_PASSWORD: chortdomains
+      POSTGRES_DB: chortdomains
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U chortline"]
+      test: ["CMD-SHELL", "pg_isready -U chortdomains"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -22,7 +22,7 @@ services:
   # Redis Cache & Pub/Sub
   redis:
     image: redis:7-alpine
-    container_name: chortline_domains_redis
+    container_name: chortdomains_redis
     ports:
       - "6379:6379"
     volumes:
@@ -38,29 +38,29 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: chortline_domains_backend
+    container_name: chortdomains_backend
     environment:
       # Database
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
-      POSTGRES_USER: chortline
-      POSTGRES_PASSWORD: chortline
-      POSTGRES_DB: chortline_domains
-      
+      POSTGRES_USER: chortdomains
+      POSTGRES_PASSWORD: chortdomains
+      POSTGRES_DB: chortdomains
+
       # Redis
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      
+
       # App
       DEBUG: "true"
       DEV_MODE: "true"
       DEV_USER_ROLE: admin
-      
+
       # Authentik (configure for production)
       AUTHENTIK_ISSUER: ${AUTHENTIK_ISSUER:-}
       AUTHENTIK_CLIENT_ID: ${AUTHENTIK_CLIENT_ID:-}
       AUTHENTIK_CLIENT_SECRET: ${AUTHENTIK_CLIENT_SECRET:-}
-      
+
       # CORS
       CORS_ORIGINS: '["http://localhost:3000", "http://localhost:8000"]'
     ports:
@@ -77,9 +77,9 @@ services:
   # Frontend (Next.js)
   frontend:
     build:
-      context: ./frontend/chortservice
+      context: ./frontend/chortdomains
       dockerfile: Dockerfile
-    container_name: chortline_domains_frontend
+    container_name: chortdomains_frontend
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
       NEXT_PUBLIC_WS_URL: ws://localhost:8000
@@ -88,7 +88,7 @@ services:
     depends_on:
       - backend
     volumes:
-      - ./frontend/chortservice:/app
+      - ./frontend/chortdomains:/app
       - /app/node_modules
       - /app/.next
     command: npm run dev
